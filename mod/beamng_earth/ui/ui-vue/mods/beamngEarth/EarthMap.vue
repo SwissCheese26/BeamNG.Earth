@@ -70,6 +70,19 @@
         <div class="pin"></div>
         <div class="marker-label">{{ p.name }}</div>
       </div>
+      <!-- gas stations (settings.uiMapState's gasStations: only where a road tile with them has already reached
+           the client, so this is "where you've driven", not a world-wide search) -->
+      <div
+        v-for="g in gasMarkers"
+        :key="'g' + g.id"
+        class="marker gas-station"
+        :style="{ left: g.sx + 'px', top: g.sy + 'px' }"
+        @mousedown.stop
+        @click.stop="setGps(g.lat, g.lon, g.name)"
+      >
+        <div class="pin"></div>
+        <div class="marker-label">{{ g.name }}</div>
+      </div>
       <!-- the GPS destination -->
       <div v-if="gpsScreen" class="marker gps" :style="{ left: gpsScreen.x + 'px', top: gpsScreen.y + 'px' }">
         <div class="flag"></div>
@@ -138,6 +151,8 @@
           <label class="layer-opt"><input type="checkbox" v-model="labelsOn" /> Roads &amp; labels</label>
           <label class="layer-opt"><input type="checkbox" v-model="layersOn" /> Borders &amp; places
             <span class="layer-hint">(world to city zoom)</span></label>
+          <label class="layer-opt"><input type="checkbox" v-model="gasStationsOn" /> Gas stations
+            <span class="layer-hint">(where you've driven)</span></label>
         </div>
       </div>
       <button v-if="!embedded" class="map-btn close" @click="close" title="Close (Esc / M)">Close</button>
@@ -453,6 +468,16 @@ const onScreen = p => p.x > -50 && p.y > -50 && p.x < w.value + 50 && p.y < h.va
 const placeMarkers = computed(() =>
   (state.value.places || []).map(p => ({ ...p, ...(() => { const s = screen(p.lat, p.lon); return { sx: s.x, sy: s.y } })() }))
     .filter(p => onScreen({ x: p.sx, y: p.sy })))
+
+// gas stations (the Layers panel's "Gas stations" overlay): only those the client already knows (gasstations.lua,
+// from generated road tiles), so empty until you've driven near some
+const gasStationsOn = ref(stored("beamngEarth.map.gas", "0") === "1")
+watch(gasStationsOn, on => store("beamngEarth.map.gas", on ? "1" : "0"))
+const gasMarkers = computed(() => {
+  if (!gasStationsOn.value) return []
+  return toArray(state.value.gasStations).map(g => { const s = screen(g.lat, g.lon); return { ...g, sx: s.x, sy: s.y } })
+    .filter(g => onScreen({ x: g.sx, y: g.sy }))
+})
 
 const otherMarkers = computed(() =>
   (state.value.others || []).map(o => { const s = screen(o.lat, o.lon); return { ...o, sx: s.x, sy: s.y } })
@@ -1273,6 +1298,11 @@ const fmtLatLon = mm.fmtLatLon
 .marker.place .pin {
   position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%;
   background: #ff9a3c; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+.marker.gas-station { cursor: pointer; z-index: 2; }
+.marker.gas-station .pin {
+  position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%;
+  background: #3ddc84; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 .marker-label {
   position: absolute; left: 11px; top: -9px; white-space: nowrap; font-size: 12px; padding: 1px 5px;

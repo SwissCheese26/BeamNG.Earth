@@ -536,6 +536,15 @@ local function localWeatherBadge()
   }
 end
 
+-- The map's "Gas stations" overlay: gasstations.mapPins needs the active anchor (lat/lon conversion); nil/missing
+-- anywhere along the way is just no pins yet (before the first anchor, a fresh level, ...).
+local function mapGasStations(anchor)
+  local ok, gas = pcall(require, 'beamngEarth/gasstations')
+  if not ok or not gas.mapPins then return {} end
+  local okp, pins = pcall(gas.mapPins, anchor)
+  return okp and pins or {}
+end
+
 local mapPolledAt = nil    -- when the map last asked for its state (MAP_LOST_S)
 function M.uiMapState()
   mapPolledAt = os.clock()
@@ -553,6 +562,7 @@ function M.uiMapState()
     attribution = core and core.attribution and core.attribution() or '',
     creditsByArea = core and core.creditsByArea and core.creditsByArea() or nil,
     gps = require('beamngEarth/gps').status(),
+    gasStations = mapGasStations(st and st.anchor),
     weather = localWeatherBadge(),
   }
 end
